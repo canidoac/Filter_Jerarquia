@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest manifest-version="0.1" xmlns="http://www.tableau.com/xml/extension_manifest">
+  <dashboard-extension id="com.v0.hierarchical-filter" extension-version="1.0.0">
+    <default-locale>es_ES</default-locale>
+    <name resource-id="name"/>
+    <description>Filtro jerárquico para datos con estructura usuario-líder</description>
+    <author name="v0" email="support@v0.dev" organization="Vercel" website="https://v0.dev"/>
+    <min-api-version>1.0</min-api-version>
+    <source-location>
+      <url>YOUR_DEPLOYED_URL_HERE</url>
+    </source-location>
+    <icon>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlhJREFUOI2Nkj1oU2EUhp9z7r25+WlDautP1SqI1IqDIG5u4qCTIP4sDqKDDs5O4qiT4OQgIo6C4lZEBLVUJUXUogSKtRJpk9zcm+T+X4er1OogesJH+PrwPe/L+eC/pfvvXn/5fMGstXj5lFX/AKLJFJFYTJJ6nYkj+3ZP+P6E8mZa7D6oA+a/6p8mwG9dFhYZCJw5vMHlswZiR0lLVgJr4TdN6v3nX5qSexsj2GN3yFiLqGaQjPYAYOHFxFHYPnGaevvRw7C1ZvP+VdJHrtxKP+eW4IHwwxwAIDYeC+K3jx/VnvS+/bB1qwGsILy2RoA7G8C1nH/RHkUZ9RHBz0FAwH9kN5X6B7VDtcbhXK0kU5HQjwCG8LuIbXLk2VdJgSBuS15h0Q+J/KpmVJVVpMwYqsXA7vX9T5K2w8YZ1gRZqiYL5b5t+JjgJUO9PjjCWIvVfAOjWo2Mxf4wk/vR5wq81prQDkHl4nMGdO/sB7BJ7EkRyQIYJ8Zk8dXwV/ZLzQ6kF3wqXiKaEH1gJvhQLgdoNyVPi2DcDVi0rB0TJLdZ6OI1kpFmYe3mXxSHl4pQj1GKhbMhZd0CU3rRk7i1WHvBPXD/k5VxHT/XPPS4WH7SXDV7g5q6VVFJHs+sHZfDe8+5h5TBGn/hQ1qhFEf2MWv/+jbB8AZnDvgI2YBYH/Cg0EYjGjN4u2l4l+a5hHDJfqv/1eswrLPQ3FVVg9Y0CvJqKkFAYHnlzavv/wJgGw7PHOJlWYaXdPdwDaKuYKq1Wxo8OuYM2j52LzVNNgJWVNvAAAAFElEQVQYlXNkIAZQX/w0bNhAaQBvF/kCAI1egbAAAAABJRU5ErkJggg==</icon>
+    <permissions>
+      <permission>full data</permission>
+    </permissions>
+    <context-menu>
+      <configure-context-menu-item/>
+    </context-menu>
+  </dashboard-extension>
+  <resources>
+    <resource id="name">
+      <text locale="es_ES">Filtro Jerárquico</text>
+      <text locale="en_US">Hierarchical Filter</text>
+    </resource>
+  </resources>
+</manifest>
