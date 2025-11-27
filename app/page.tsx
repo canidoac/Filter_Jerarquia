@@ -21,6 +21,7 @@ export default function HierarchicalFilterExtension() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("loading")
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [dashboardName, setDashboardName] = useState<string>("")
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
 
   // Estados de configuración y datos
   const [isConfigured, setIsConfigured] = useState(false)
@@ -30,11 +31,21 @@ export default function HierarchicalFilterExtension() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
 
+  const addDebug = (msg: string) => {
+    console.log(`[v0] ${msg}`)
+    setDebugInfo((prev) => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }
+
   // Inicialización de Tableau - solo se ejecuta una vez al montar
   useEffect(() => {
     let isMounted = true
+    let attempts = 0
+    const maxAttempts = 30 // 30 intentos x 200ms = 6 segundos máximo
 
-    const initTableau = async () => {
+    const tryInit = async () => {
+      attempts++
+      addDebug(`Intento ${attempts}/${maxAttempts}`)
+
       // Verificar si existe la API
       if (typeof window === "undefined") {
         return
@@ -67,8 +78,10 @@ export default function HierarchicalFilterExtension() {
           const parsedConfig = JSON.parse(savedConfig)
           setConfig(parsedConfig)
           setIsConfigured(true)
+          addDebug(`Configuración cargada`)
         } else {
           setShowConfig(true)
+          addDebug(`Sin configuración previa`)
         }
       } catch (err: any) {
         console.error("[v0] Error de inicialización:", err)
@@ -80,7 +93,7 @@ export default function HierarchicalFilterExtension() {
     }
 
     // Ejecutar inicialización
-    initTableau()
+    setTimeout(tryInit, 100)
 
     return () => {
       isMounted = false
@@ -122,6 +135,7 @@ export default function HierarchicalFilterExtension() {
     if (!config || connectionState !== "connected") return
 
     setIsLoading(true)
+    addDebug(`Cargando datos de ${config.worksheetName}`)
 
     try {
       const dashboard = window.tableau.extensions.dashboardContent.dashboard
@@ -134,6 +148,9 @@ export default function HierarchicalFilterExtension() {
       const dataTable = await worksheet.getSummaryDataAsync()
       const columns = dataTable.columns
       const data = dataTable.data
+
+      addDebug(`Columnas: ${columns.map((c: any) => c.fieldName).join(", ")}`)
+      addDebug(`Filas: ${data.length}`)
 
       const userColIndex = columns.findIndex((col: any) => col.fieldName === config.userField)
       const leaderColIndex = columns.findIndex((col: any) => col.fieldName === config.leaderField)
@@ -155,13 +172,14 @@ export default function HierarchicalFilterExtension() {
 
       const hierarchy = buildHierarchy(rawData, "usuario", "lider")
       setTreeData(hierarchy)
+      addDebug(`Jerarquía construida: ${hierarchy.length} raíces`)
 
       // Listener para cambios de filtro
       worksheet.addEventListener(window.tableau.TableauEventType.FilterChanged, () => {
         loadData()
       })
     } catch (err: any) {
-      console.error("[v0] Error cargando datos:", err)
+      addDebug(`Error: ${err.message}`)
       setConnectionError(err.message)
     } finally {
       setIsLoading(false)
@@ -217,7 +235,16 @@ export default function HierarchicalFilterExtension() {
       <div className="flex flex-col items-center justify-center h-screen bg-background p-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
         <p className="text-base font-medium text-foreground">Conectando con Tableau...</p>
-        <p className="text-sm text-muted-foreground mt-2">Inicializando extensión</p>
+        <p className="text-sm text-muted-foreground mt-2">Buscando API de Tableau...</p>
+        <div className="mt-4 p-3 bg-muted rounded-lg max-w-md w-full max-h-40 overflow-auto">
+          <p className="text-xs font-mono text-muted-foreground">
+            {debugInfo.map((log, i) => (
+              <span key={i} className="block">
+                {log}
+              </span>
+            ))}
+          </p>
+        </div>
       </div>
     )
   }
@@ -232,6 +259,11 @@ export default function HierarchicalFilterExtension() {
             <h2 className="text-lg font-semibold text-destructive">Error de Conexión</h2>
           </div>
           <p className="text-sm text-destructive/90 mb-4">{connectionError}</p>
+          <div className="mb-4 p-2 bg-muted rounded text-xs font-mono max-h-32 overflow-auto">
+            {debugInfo.map((log, i) => (
+              <div key={i}>{log}</div>
+            ))}
+          </div>
           <Button variant="outline" className="w-full bg-transparent" onClick={() => window.location.reload()}>
             Reintentar
           </Button>
@@ -249,6 +281,11 @@ export default function HierarchicalFilterExtension() {
           <p className="text-sm text-amber-700 mb-4">
             Esta extensión debe ejecutarse dentro de un Dashboard de Tableau. Mostrando datos de ejemplo.
           </p>
+          <div className="mb-4 p-2 bg-amber-100 rounded text-xs font-mono max-h-32 overflow-auto text-amber-800">
+            {debugInfo.map((log, i) => (
+              <div key={i}>{log}</div>
+            ))}
+          </div>
           <Button onClick={loadDemoData} className="w-full">
             Ver Demo
           </Button>

@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -20,7 +21,10 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <script src="https://extensions.tableauusercontent.com/resources/pex/v1/tableau.extensions.1.latest.min.js" />
+        <Script
+          src="https://public.tableau.com/javascripts/api/tableau.extensions.1.latest.min.js"
+          strategy="beforeInteractive"
+        />
       </head>
       <body className="font-sans antialiased">{children}</body>
     </html>
