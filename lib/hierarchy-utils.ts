@@ -3,17 +3,24 @@ import type { TreeNode, RawDataRow } from "./types"
 /**
  * Builds a hierarchical tree structure from flat user-leader data
  */
-export function buildHierarchy(data: RawDataRow[], userKey: string, leaderKey: string): TreeNode[] {
-  // Create a map of all users
+export function buildHierarchy(
+  data: RawDataRow[],
+  userKey: string,
+  leaderKey: string,
+  fullNameKey?: string,
+): TreeNode[] {
   const nodeMap = new Map<string, TreeNode>()
 
   // First pass: create all nodes
   data.forEach((row) => {
     const userId = row[userKey as keyof RawDataRow] as string
+    const displayName = fullNameKey ? (row[fullNameKey as keyof RawDataRow] as string) : userId
+
     if (userId && !nodeMap.has(userId)) {
       nodeMap.set(userId, {
         id: userId,
-        name: userId,
+        name: userId, // Keep ID as name for filtering
+        displayName: displayName || userId, // Use display name for UI
         children: [],
         parentId: row[leaderKey as keyof RawDataRow] as string | null,
       })
@@ -39,7 +46,7 @@ export function buildHierarchy(data: RawDataRow[], userKey: string, leaderKey: s
   // Sort children alphabetically
   const sortChildren = (nodes: TreeNode[]): TreeNode[] => {
     return nodes
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name))
       .map((node) => ({
         ...node,
         children: node.children ? sortChildren(node.children) : undefined,
@@ -94,7 +101,9 @@ export function filterTree(nodes: TreeNode[], searchTerm: string): TreeNode[] {
   const result: TreeNode[] = []
 
   nodes.forEach((node) => {
-    const nameMatches = node.name.toLowerCase().includes(searchTerm)
+    const nameMatches =
+      node.name.toLowerCase().includes(searchTerm) ||
+      (node.displayName && node.displayName.toLowerCase().includes(searchTerm))
     const filteredChildren = node.children ? filterTree(node.children, searchTerm) : []
 
     if (nameMatches || filteredChildren.length > 0) {

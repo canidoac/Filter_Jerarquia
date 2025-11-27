@@ -24,6 +24,7 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
   const [selectedWorksheet, setSelectedWorksheet] = useState(initialConfig?.worksheetName || "")
   const [userField, setUserField] = useState(initialConfig?.userField || "")
   const [leaderField, setLeaderField] = useState(initialConfig?.leaderField || "")
+  const [fullNameField, setFullNameField] = useState(initialConfig?.fullNameField || "__none__")
   const [availableFields, setAvailableFields] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -51,7 +52,6 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
               wsData.push({ name: ws.name, fields })
             } catch (wsErr: any) {
               console.error("[v0] ConfigPanel: Error loading worksheet", ws.name, ":", wsErr)
-              // Still add the worksheet but with empty fields
               wsData.push({ name: ws.name, fields: [] })
             }
           }
@@ -72,11 +72,11 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
         setWorksheets([
           {
             name: "Hoja de Usuarios",
-            fields: ["Usuario", "Lider", "Departamento", "País"],
+            fields: ["Usuario", "Lider", "Nombre Completo", "Departamento", "País"],
           },
           {
             name: "Datos de Ventas",
-            fields: ["Vendedor", "Supervisor", "Región", "Monto"],
+            fields: ["Vendedor", "Supervisor", "Nombre Completo Vendedor", "Región", "Monto"],
           },
         ])
       }
@@ -86,7 +86,6 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
     loadWorksheets()
   }, [isTableauReady])
 
-  // Update available fields when worksheet changes
   useEffect(() => {
     const ws = worksheets.find((w) => w.name === selectedWorksheet)
     if (ws) {
@@ -104,6 +103,7 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
         worksheetName: selectedWorksheet,
         userField,
         leaderField,
+        fullNameField: fullNameField === "__none__" ? undefined : fullNameField,
       })
     }
   }
@@ -117,15 +117,12 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
           <CardTitle className="text-lg">Configurar Filtro Jerárquico</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Loading state */}
           {isLoading && (
             <div className="text-sm text-muted-foreground text-center py-4">Cargando hojas de trabajo...</div>
           )}
 
-          {/* Error state */}
           {loadError && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{loadError}</div>}
 
-          {/* Worksheet Selection */}
           <div className="space-y-2">
             <Label htmlFor="worksheet">Hoja de trabajo</Label>
             <Select value={selectedWorksheet} onValueChange={setSelectedWorksheet} disabled={isLoading}>
@@ -145,7 +142,6 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
             )}
           </div>
 
-          {/* User Field */}
           <div className="space-y-2">
             <Label htmlFor="userField">Campo de Usuario</Label>
             <Select value={userField} onValueChange={setUserField} disabled={!selectedWorksheet || isLoading}>
@@ -163,7 +159,6 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
             <p className="text-xs text-muted-foreground">Campo que contiene el nombre del usuario</p>
           </div>
 
-          {/* Leader Field */}
           <div className="space-y-2">
             <Label htmlFor="leaderField">Campo de Líder</Label>
             <Select value={leaderField} onValueChange={setLeaderField} disabled={!selectedWorksheet || isLoading}>
@@ -181,7 +176,24 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
             <p className="text-xs text-muted-foreground">Campo que contiene el nombre del líder (null para raíz)</p>
           </div>
 
-          {/* Actions */}
+          <div className="space-y-2">
+            <Label htmlFor="fullNameField">Campo de Nombre Completo (opcional)</Label>
+            <Select value={fullNameField} onValueChange={setFullNameField} disabled={!selectedWorksheet || isLoading}>
+              <SelectTrigger id="fullNameField">
+                <SelectValue placeholder="Seleccionar campo..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Ninguno (usar campo de usuario)</SelectItem>
+                {availableFields.map((field) => (
+                  <SelectItem key={field} value={field}>
+                    {field}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Campo para mostrar en el filtro (ej: "Juan Pérez")</p>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={onCancel} className="flex-1 bg-transparent" disabled={!initialConfig}>
               Cancelar
@@ -191,7 +203,6 @@ export function ConfigPanel({ onSave, onCancel, isTableauReady, initialConfig }:
             </Button>
           </div>
 
-          {/* Status indicator */}
           <div className="text-xs text-muted-foreground text-center pt-2 border-t">
             {isTableauReady ? (
               <span className="text-green-600">Conectado a Tableau</span>

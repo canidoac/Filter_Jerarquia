@@ -91,7 +91,7 @@ export const TreeNode = memo(function TreeNodeComponent({
 
         {/* Label */}
         <span className="text-sm text-foreground truncate flex-1" onClick={handleCheckboxChange}>
-          {node.name}
+          {node.displayName || node.name}
         </span>
 
         {/* Children count badge */}

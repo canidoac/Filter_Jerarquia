@@ -160,27 +160,37 @@ export default function HierarchicalFilterExtension() {
 
       const userColIndex = columns.findIndex((col: any) => col.fieldName === config.userField)
       const leaderColIndex = columns.findIndex((col: any) => col.fieldName === config.leaderField)
+      const fullNameColIndex = config.fullNameField
+        ? columns.findIndex((col: any) => col.fieldName === config.fullNameField)
+        : -1
 
       if (userColIndex === -1 || leaderColIndex === -1) {
         throw new Error("Campos de usuario o líder no encontrados")
       }
 
-      const rawData = data.map((row: any) => ({
-        usuario: row[userColIndex].formattedValue,
-        lider:
-          row[leaderColIndex].formattedValue === "%null%" ||
-          row[leaderColIndex].formattedValue === "Null" ||
-          row[leaderColIndex].formattedValue === "" ||
-          row[leaderColIndex].formattedValue === null
-            ? null
-            : row[leaderColIndex].formattedValue,
-      }))
+      const rawData = data.map((row: any) => {
+        const userData: any = {
+          usuario: row[userColIndex].formattedValue,
+          lider:
+            row[leaderColIndex].formattedValue === "%null%" ||
+            row[leaderColIndex].formattedValue === "Null" ||
+            row[leaderColIndex].formattedValue === "" ||
+            row[leaderColIndex].formattedValue === null
+              ? null
+              : row[leaderColIndex].formattedValue,
+        }
 
-      const hierarchy = buildHierarchy(rawData, "usuario", "lider")
+        if (fullNameColIndex !== -1) {
+          userData.nombreCompleto = row[fullNameColIndex].formattedValue
+        }
+
+        return userData
+      })
+
+      const hierarchy = buildHierarchy(rawData, "usuario", "lider", config.fullNameField ? "nombreCompleto" : undefined)
       setTreeData(hierarchy)
       addDebug(`Jerarquía construida: ${hierarchy.length} raíces`)
 
-      // Listener para cambios de filtro
       worksheet.addEventListener(window.tableau.TableauEventType.FilterChanged, () => {
         loadData()
       })
@@ -210,7 +220,6 @@ export default function HierarchicalFilterExtension() {
 
   const applyFilter = useCallback(async () => {
     if (connectionState !== "connected" || !config) {
-      // En modo demo, solo limpiar el estado de pendientes
       setPendingChanges(false)
       return
     }
