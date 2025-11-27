@@ -27,7 +27,7 @@ export default function RootLayout({
       */}
       <head>
         <script src="https://cdn.jsdelivr.net/gh/tableau/extensions-api/lib/tableau.extensions.1.latest.min.js"></script>
-      </head>
+        </head>
       <body className="font-sans antialiased">{children}</body>
     </html>
   )
