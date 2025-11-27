@@ -1,6 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+// NO IMPORTAMOS 'Script' de 'next/script'
+
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -20,9 +22,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* CORRECCIÓN: Usamos una etiqueta script normal en lugar del componente Script de Next.js
-            para asegurar que se cargue de forma síncrona antes de que arranque React. 
-            También usamos la URL correcta del CDN de extensiones. */}
+        {/* Usar etiqueta HTML nativa para forzar la carga síncrona antes de que React inicie */}
         <script src="https://extensions.tableauusercontent.com/resources/pex/v1/tableau.extensions.1.latest.min.js"></script>
       </head>
       <body className="font-sans antialiased">{children}</body>
