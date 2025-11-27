@@ -24,33 +24,57 @@ export default function HierarchicalFilterExtension() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isTableauReady, setIsTableauReady] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string>("")
 
-  // Initialize Tableau Extension
   useEffect(() => {
     const initTableau = async () => {
-      if (typeof window !== "undefined" && window.tableau) {
-        try {
-          await window.tableau.extensions.initializeAsync()
-          setIsTableauReady(true)
+      console.log("[v0] Starting Tableau initialization...")
+      console.log("[v0] window.tableau exists:", typeof window !== "undefined" && !!window.tableau)
 
-          // Load saved configuration
-          const savedConfig = window.tableau.extensions.settings.get("hierarchyConfig")
-          if (savedConfig) {
-            const parsedConfig = JSON.parse(savedConfig)
-            setConfig(parsedConfig)
-            setIsConfigured(true)
-          } else {
-            setShowConfig(true)
+      // Wait for tableau to be available (may load async)
+      let attempts = 0
+      const maxAttempts = 10
+
+      while (attempts < maxAttempts) {
+        if (typeof window !== "undefined" && window.tableau && window.tableau.extensions) {
+          console.log("[v0] Tableau Extensions API found, initializing...")
+          setDebugInfo("API encontrada, inicializando...")
+
+          try {
+            await window.tableau.extensions.initializeAsync()
+            console.log("[v0] Tableau initialized successfully")
+            setDebugInfo("Tableau inicializado correctamente")
+            setIsTableauReady(true)
+
+            // Load saved configuration
+            const savedConfig = window.tableau.extensions.settings.get("hierarchyConfig")
+            console.log("[v0] Saved config:", savedConfig)
+
+            if (savedConfig) {
+              const parsedConfig = JSON.parse(savedConfig)
+              setConfig(parsedConfig)
+              setIsConfigured(true)
+            } else {
+              setShowConfig(true)
+            }
+            return
+          } catch (err: any) {
+            console.error("[v0] Error initializing Tableau extension:", err)
+            setError(`Error al inicializar: ${err.message}`)
+            setDebugInfo(`Error: ${err.message}`)
+            return
           }
-        } catch (err) {
-          console.error("Error initializing Tableau extension:", err)
-          setError("Error al inicializar la extensión de Tableau")
         }
-      } else {
-        // Demo mode when not in Tableau
-        console.log("[v0] Running in demo mode - Tableau API not available")
-        loadDemoData()
+
+        attempts++
+        console.log(`[v0] Waiting for Tableau API... attempt ${attempts}/${maxAttempts}`)
+        await new Promise((resolve) => setTimeout(resolve, 500))
       }
+
+      // Demo mode when not in Tableau
+      console.log("[v0] Running in demo mode - Tableau API not available after waiting")
+      setDebugInfo("Modo demo - API no disponible")
+      loadDemoData()
     }
 
     initTableau()
@@ -58,13 +82,13 @@ export default function HierarchicalFilterExtension() {
 
   // Load data when configuration changes
   useEffect(() => {
-    if (config && (isTableauReady || !window.tableau)) {
+    if (config && isTableauReady) {
+      console.log("[v0] Config changed, loading data...")
       loadData()
     }
   }, [config, isTableauReady])
 
   const loadDemoData = () => {
-    // Demo data for testing outside Tableau
     const demoData = [
       { usuario: "Carlos", lider: null },
       { usuario: "María", lider: "Carlos" },
@@ -93,24 +117,40 @@ export default function HierarchicalFilterExtension() {
 
     setIsLoading(true)
     setError(null)
+    console.log("[v0] Loading data with config:", config)
 
     try {
       if (window.tableau && isTableauReady) {
         const dashboard = window.tableau.extensions.dashboardContent.dashboard
+        console.log(
+          "[v0] Dashboard worksheets:",
+          dashboard.worksheets.map((ws: any) => ws.name),
+        )
+
         const worksheet = dashboard.worksheets.find((ws: any) => ws.name === config.worksheetName)
 
         if (!worksheet) {
           throw new Error(`Hoja "${config.worksheetName}" no encontrada`)
         }
 
+        console.log("[v0] Found worksheet:", worksheet.name)
+
         // Get summary data (respects dashboard filters)
         const dataTable = await worksheet.getSummaryDataAsync()
         const columns = dataTable.columns
         const data = dataTable.data
 
+        console.log(
+          "[v0] Columns:",
+          columns.map((c: any) => c.fieldName),
+        )
+        console.log("[v0] Data rows:", data.length)
+
         // Find column indices
         const userColIndex = columns.findIndex((col: any) => col.fieldName === config.userField)
         const leaderColIndex = columns.findIndex((col: any) => col.fieldName === config.leaderField)
+
+        console.log("[v0] User column index:", userColIndex, "Leader column index:", leaderColIndex)
 
         if (userColIndex === -1 || leaderColIndex === -1) {
           throw new Error("Campos de usuario o líder no encontrados")
@@ -122,20 +162,27 @@ export default function HierarchicalFilterExtension() {
           lider:
             row[leaderColIndex].formattedValue === "%null%" ||
             row[leaderColIndex].formattedValue === "Null" ||
-            row[leaderColIndex].formattedValue === ""
+            row[leaderColIndex].formattedValue === "" ||
+            row[leaderColIndex].formattedValue === null
               ? null
               : row[leaderColIndex].formattedValue,
         }))
 
+        console.log("[v0] Raw data sample:", rawData.slice(0, 5))
+
         // Build hierarchy
         const hierarchy = buildHierarchy(rawData, "usuario", "lider")
+        console.log("[v0] Hierarchy built:", hierarchy.length, "root nodes")
         setTreeData(hierarchy)
 
         // Listen for filter changes
-        worksheet.addEventListener(window.tableau.TableauEventType.FilterChanged, () => loadData())
+        worksheet.addEventListener(window.tableau.TableauEventType.FilterChanged, () => {
+          console.log("[v0] Filter changed, reloading data...")
+          loadData()
+        })
       }
     } catch (err: any) {
-      console.error("Error loading data:", err)
+      console.error("[v0] Error loading data:", err)
       setError(err.message || "Error al cargar datos")
     } finally {
       setIsLoading(false)
@@ -143,6 +190,7 @@ export default function HierarchicalFilterExtension() {
   }, [config, isTableauReady])
 
   const handleConfigSave = async (newConfig: TableauConfig) => {
+    console.log("[v0] Saving config:", newConfig)
     setConfig(newConfig)
     setIsConfigured(true)
     setShowConfig(false)
@@ -151,30 +199,44 @@ export default function HierarchicalFilterExtension() {
     if (window.tableau && isTableauReady) {
       window.tableau.extensions.settings.set("hierarchyConfig", JSON.stringify(newConfig))
       await window.tableau.extensions.settings.saveAsync()
+      console.log("[v0] Config saved to Tableau settings")
     }
   }
 
   const handleSelectionChange = useCallback(
     async (newSelectedIds: Set<string>) => {
       setSelectedIds(newSelectedIds)
+      console.log("[v0] Selection changed:", Array.from(newSelectedIds))
 
-      // Apply filter in Tableau
+      // Apply filter in Tableau to ALL worksheets
       if (window.tableau && isTableauReady && config) {
         try {
           const dashboard = window.tableau.extensions.dashboardContent.dashboard
-          const worksheet = dashboard.worksheets.find((ws: any) => ws.name === config.worksheetName)
+          const selectedValues = Array.from(newSelectedIds)
 
-          if (worksheet && newSelectedIds.size > 0) {
-            await worksheet.applyFilterAsync(
-              config.userField,
-              Array.from(newSelectedIds),
-              window.tableau.FilterUpdateType.Replace,
-            )
-          } else if (worksheet && newSelectedIds.size === 0) {
-            await worksheet.clearFilterAsync(config.userField)
+          console.log("[v0] Applying filter to all worksheets. Values:", selectedValues)
+
+          // Apply filter to ALL worksheets that have the user field
+          for (const worksheet of dashboard.worksheets) {
+            try {
+              if (selectedValues.length > 0) {
+                await worksheet.applyFilterAsync(
+                  config.userField,
+                  selectedValues,
+                  window.tableau.FilterUpdateType.Replace,
+                )
+                console.log(`[v0] Filter applied to worksheet: ${worksheet.name}`)
+              } else {
+                await worksheet.clearFilterAsync(config.userField)
+                console.log(`[v0] Filter cleared from worksheet: ${worksheet.name}`)
+              }
+            } catch (wsErr: any) {
+              // Some worksheets may not have this field, ignore those errors
+              console.log(`[v0] Could not apply filter to ${worksheet.name}:`, wsErr.message)
+            }
           }
         } catch (err) {
-          console.error("Error applying filter:", err)
+          console.error("[v0] Error applying filter:", err)
         }
       }
     },
@@ -225,6 +287,7 @@ export default function HierarchicalFilterExtension() {
       {/* Footer */}
       <div className="px-3 py-2 border-t border-border text-xs text-muted-foreground">
         {selectedIds.size > 0 ? `${selectedIds.size} usuario(s) seleccionado(s)` : "Ningún filtro aplicado"}
+        {debugInfo && <span className="ml-2">| {debugInfo}</span>}
       </div>
     </div>
   )
