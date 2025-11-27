@@ -1,8 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
+// Hemos eliminado la importación de Script de "next/script"
 import { Geist, Geist_Mono } from "next/font/google"
-// NO IMPORTAMOS 'Script' de 'next/script'
-
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -21,9 +20,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      {/* ESTA ES LA ZONA CRÍTICA:
+        Usar la etiqueta <script> nativa dentro del <head> de React 
+        garantiza que el navegador la cargue de forma síncrona, 
+        igual que en el modelo MyCSS.
+      */}
       <head>
-        {/* Usar etiqueta HTML nativa para forzar la carga síncrona antes de que React inicie */}
-        <script src="https://extensions.tableauusercontent.com/resources/pex/v1/tableau.extensions.1.latest.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/tableau/extensions-api/lib/tableau.extensions.1.latest.min.js"></script>
       </head>
       <body className="font-sans antialiased">{children}</body>
     </html>
