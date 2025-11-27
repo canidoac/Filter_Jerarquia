@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { HierarchicalTree } from "@/components/hierarchical-tree"
 import { ConfigPanel } from "@/components/config-panel"
 import { Button } from "@/components/ui/button"
-import { Settings, RefreshCw, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
+import { Settings, RefreshCw, AlertCircle, Loader2, CheckCircle2, Filter } from "lucide-react"
 import type { TreeNode, TableauConfig } from "@/lib/types"
 import { buildHierarchy } from "@/lib/hierarchy-utils"
 
@@ -29,6 +29,8 @@ export default function HierarchicalFilterExtension() {
   const [config, setConfig] = useState<TableauConfig | null>(null)
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [pendingChanges, setPendingChanges] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const addDebug = (msg: string) => {
@@ -197,37 +199,70 @@ export default function HierarchicalFilterExtension() {
     }
   }
 
-  const handleSelectionChange = useCallback(
-    async (newSelectedIds: Set<string>) => {
-      setSelectedIds(newSelectedIds)
+  const handleSelectionChange = useCallback((newSelectedIds: Set<string>) => {
+    setSelectedIds(newSelectedIds)
+    setPendingChanges(true) // Marcar que hay cambios pendientes
+  }, [])
 
-      if (connectionState === "connected" && config) {
+  const applyFilter = useCallback(async () => {
+    if (connectionState !== "connected" || !config) {
+      // En modo demo, solo limpiar el estado de pendientes
+      setPendingChanges(false)
+      return
+    }
+
+    setIsApplying(true)
+    try {
+      const dashboard = window.tableau.extensions.dashboardContent.dashboard
+      const selectedValues = Array.from(selectedIds)
+
+      for (const worksheet of dashboard.worksheets) {
         try {
-          const dashboard = window.tableau.extensions.dashboardContent.dashboard
-          const selectedValues = Array.from(newSelectedIds)
-
-          for (const worksheet of dashboard.worksheets) {
-            try {
-              if (selectedValues.length > 0) {
-                await worksheet.applyFilterAsync(
-                  config.userField,
-                  selectedValues,
-                  window.tableau.FilterUpdateType.Replace,
-                )
-              } else {
-                await worksheet.clearFilterAsync(config.userField)
-              }
-            } catch {
-              // Ignorar hojas sin el campo
-            }
+          if (selectedValues.length > 0) {
+            await worksheet.applyFilterAsync(config.userField, selectedValues, window.tableau.FilterUpdateType.Replace)
+          } else {
+            await worksheet.clearFilterAsync(config.userField)
           }
-        } catch (err) {
-          console.error("[v0] Error aplicando filtro:", err)
+        } catch {
+          // Ignorar hojas sin el campo
         }
       }
-    },
-    [config, connectionState],
-  )
+      setPendingChanges(false)
+      addDebug(`Filtro aplicado: ${selectedValues.length} usuarios`)
+    } catch (err: any) {
+      console.error("[v0] Error aplicando filtro:", err)
+      addDebug(`Error aplicando filtro: ${err.message}`)
+    } finally {
+      setIsApplying(false)
+    }
+  }, [config, connectionState, selectedIds])
+
+  const clearFilter = useCallback(async () => {
+    setSelectedIds(new Set())
+
+    if (connectionState !== "connected" || !config) {
+      setPendingChanges(false)
+      return
+    }
+
+    setIsApplying(true)
+    try {
+      const dashboard = window.tableau.extensions.dashboardContent.dashboard
+      for (const worksheet of dashboard.worksheets) {
+        try {
+          await worksheet.clearFilterAsync(config.userField)
+        } catch {
+          // Ignorar hojas sin el campo
+        }
+      }
+      setPendingChanges(false)
+      addDebug("Filtros limpiados")
+    } catch (err: any) {
+      console.error("[v0] Error limpiando filtro:", err)
+    } finally {
+      setIsApplying(false)
+    }
+  }, [config, connectionState])
 
   // UI: Estado de carga inicial
   if (connectionState === "loading") {
@@ -357,8 +392,32 @@ export default function HierarchicalFilterExtension() {
         )}
       </div>
 
-      <div className="px-3 py-2 border-t border-border text-xs text-muted-foreground">
-        {selectedIds.size > 0 ? `${selectedIds.size} usuario(s) seleccionado(s)` : "Ningún filtro aplicado"}
+      <div className="px-3 py-2 border-t border-border space-y-2">
+        <div className="flex items-center gap-2">
+          <Button onClick={applyFilter} disabled={isApplying || !pendingChanges} className="flex-1 h-8" size="sm">
+            {isApplying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Filter className="h-4 w-4 mr-2" />}
+            Aplicar Filtro
+            {pendingChanges && (
+              <span className="ml-2 bg-primary-foreground/20 text-xs px-1.5 py-0.5 rounded">{selectedIds.size}</span>
+            )}
+          </Button>
+          <Button
+            onClick={clearFilter}
+            variant="outline"
+            size="sm"
+            className="h-8 bg-transparent"
+            disabled={isApplying || selectedIds.size === 0}
+          >
+            Limpiar
+          </Button>
+        </div>
+        <div className="text-xs text-muted-foreground text-center">
+          {pendingChanges
+            ? `${selectedIds.size} usuario(s) seleccionado(s) - cambios pendientes`
+            : selectedIds.size > 0
+              ? `${selectedIds.size} usuario(s) filtrado(s)`
+              : "Ningún filtro aplicado"}
+        </div>
       </div>
     </div>
   )
