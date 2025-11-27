@@ -65,7 +65,11 @@ export default function HierarchicalFilterExtension() {
 
       try {
         console.log("[v0] Llamando initializeAsync...")
-        await window.tableau.extensions.initializeAsync()
+        await window.tableau.extensions.initializeAsync({
+          configure: () => {
+            setShowConfig(true)
+          },
+        })
 
         if (!isMounted) return
 

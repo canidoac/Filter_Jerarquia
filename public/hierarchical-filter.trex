@@ -14,9 +14,7 @@
     <permissions>
       <permission>full data</permission>
     </permissions>
-    <context-menu>
-      <configure-context-menu-item/>
-    </context-menu>
+    <!-- Removido context-menu que causaba error de inicialización -->
   </dashboard-extension>
   <resources>
     <resource id="name">
